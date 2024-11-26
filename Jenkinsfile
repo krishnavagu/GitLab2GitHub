@@ -1,28 +1,29 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'GITLAB_REPOS', defaultValue: 'https://gitlab.com/cicd-migration/autosys_cimigration.git', description: 'List of GitLab repositories to migrate (comma-separated).')
+        string(name: 'GITLAB_BRANCHES', defaultValue: 'F-Autosys_consolidate', description: 'List of GitLab branches to migrate (comma-separated).')
+        string(name: 'GITHUB_ORG', defaultValue: 'VenkataSalesforce', description: 'GitHub organization URL to push the code into (e.g., VenkataSalesforce).')
+        string(name: 'GITHUB_TOKEN', description: 'GitHub Personal Access Token for authentication') // Token input for GitHub
+    }
+
     environment {
-        GITLAB_CREDENTIALS = 'gitlab-credentials-id'  // Replace with your GitLab credentials ID
-        GITHUB_CREDENTIALS = 'github-credentials-id'  // Replace with your GitHub credentials ID
-        GITHUB_ORG = 'VenkataSalesforce'  // GitHub organization
+        GITLAB_CREDENTIALS = 'gitlab-credentials-id'
+        // Using the GitHub token passed as an input parameter directly in the script.
+        GITHUB_TOKEN = "${params.GITHUB_TOKEN}" 
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Input Parameters') {
             steps {
                 script {
-                    GITLAB_REPOS_LIST = ['https://gitlab.com/cicd-migration/autosys_cimigration.git']
-                    GITLAB_BRANCHES_LIST = ['F-Autosys_consolidate']
-                    GITHUB_ORG = 'VenkataSalesforce'
+                    GITLAB_REPOS_LIST = params.GITLAB_REPOS.split(',')
+                    GITLAB_BRANCHES_LIST = params.GITLAB_BRANCHES.split(',')
+                    GITHUB_ORG = params.GITHUB_ORG
 
                     if (GITLAB_REPOS_LIST.size() != GITLAB_BRANCHES_LIST.size()) {
-                        error "Number of repositories does not match the number of branches."
+                        error "The number of repositories does not match the number of branches."
                     }
                 }
             }
@@ -33,26 +34,38 @@ pipeline {
                 script {
                     GITLAB_REPOS_LIST.eachWithIndex { repo, index ->
                         branch = GITLAB_BRANCHES_LIST[index]
-                        echo "Cloning from GitLab: ${repo} (Branch: ${branch})"
+                        echo "Cloning from GitLab repository: ${repo} (Branch: ${branch})"
 
+                        // Clone the repository from GitLab
                         dir("autosys_cimigration") {
-                            // Clone from GitLab
-                            checkout([$class: 'GitSCM',
-                                      branches: [[name: "*/${branch}"]],
+                            checkout([$class: 'GitSCM', 
+                                      branches: [[name: "*/${branch}"]], 
                                       userRemoteConfigs: [[url: repo, credentialsId: GITLAB_CREDENTIALS]]])
 
-                            // Clean up Git credentials helper
+                            // Verify that the repository is cloned correctly
+                            echo "Verifying that the Git repository is properly initialized..."
+                            sh 'ls -la'  // List all files including hidden files
+                            sh 'ls -la .git'  // Check if .git directory is present
+
+                            // Ensure the GitHub organization repository URL
+                            repoName = repo.tokenize('/').last().replace('.git', '')  // Extract repo name from GitLab URL
+                            GITHUB_REPO_URL = "${GITHUB_ORG}/${repoName}"
+
+                            // Try to checkout the branch in GitHub repo. If it exists, switch to it. If not, create it.
+                            echo "Checking out branch ${branch} in GitHub repository..."
                             sh """
-                                git config --global --unset-all credential.helper
-                                git config --global credential.helper store
+                                git fetch origin
+                                git checkout ${branch} || git checkout -b ${branch}
                             """
 
-                            // Correctly set GitHub repository remote URL using GitHub credentials
+                            // Set the correct GitHub repository URL (Token-based authentication)
+                            echo "Setting GitHub repository URL: ${GITHUB_REPO_URL}"
                             sh """
-                                git remote set-url origin https://x-access-token:${GITHUB_CREDENTIALS}@github.com/${GITHUB_ORG}/autosys_cimigration.git
+                                git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO_URL}.git
                             """
 
-                            // Push to GitHub
+                            // Push the GitLab repository to the GitHub organization repository
+                            echo "Pushing changes to GitHub repository..."
                             sh """
                                 git push --set-upstream origin ${branch}
                                 git push --tags
@@ -63,20 +76,28 @@ pipeline {
             }
         }
 
-        // Add a 2-minute wait (120 seconds) here:
-        stage('Wait for 2 Minutes') {
-            steps {
-                echo "Waiting for 2 minutes..."
-                sleep time: 2, unit: 'MINUTES'  // This will pause the pipeline for 2 minutes (120 seconds)
-            }
-        }
-
         stage('Post-Migration Verification') {
             steps {
                 script {
-                    echo "Post-migration verification..."
-                    // Add verification steps as needed
-                    sh 'git log --oneline'
+                    // After pushing, we need to ensure the Git repo context is available for verification
+                    echo "Verifying that we are still in a valid Git repository..."
+
+                    // Check the working directory and its contents to confirm that we are in a Git repository
+                    echo "Checking current directory..."
+                    sh 'pwd'
+                    sh 'ls -la'
+
+                    // Ensure we're in the correct directory where `.git` exists
+                    echo "Listing .git directory contents..."
+                    sh 'ls -la autosys_cimigration/.git'  // Explicitly point to the Git repo
+
+                    // Now, verify the repository by running git log and git ls-tree commands
+                    echo "Verifying the Git log and repository files..."
+                    sh '''
+                        cd autosys_cimigration
+                        git log --oneline --decorate --graph
+                        git ls-tree -r HEAD --name-only
+                    '''
                 }
             }
         }
@@ -84,10 +105,10 @@ pipeline {
 
     post {
         success {
-            echo 'Migration from GitLab to GitHub completed successfully!'
+            echo 'Repository migration from GitLab to GitHub organization completed successfully for all repositories!'
         }
         failure {
-            echo 'Migration failed due to credential or other errors.'
+            echo 'Migration failed!'
         }
     }
 }
