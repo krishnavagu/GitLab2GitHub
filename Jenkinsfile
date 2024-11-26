@@ -4,6 +4,7 @@ pipeline {
     environment {
         GITLAB_CREDENTIALS = 'gitlab-credentials-id'  // Replace with your GitLab credentials ID
         GITHUB_CREDENTIALS = 'github-credentials-id'  // Replace with your GitHub credentials ID
+        GITHUB_ORG = 'VenkataSalesforce'  // GitHub organization
     }
 
     stages {
@@ -46,9 +47,9 @@ pipeline {
                                 git config --global credential.helper store
                             """
 
-                            // Set GitHub remote URL using GitHub credentials
+                            // Correctly set GitHub repository remote URL using GitHub credentials
                             sh """
-                                git remote set-url origin https://x-access-token:${GITHUB_CREDENTIALS}@github.com/${GITHUB_ORG}/${repo}.git
+                                git remote set-url origin https://x-access-token:${GITHUB_CREDENTIALS}@github.com/${GITHUB_ORG}/autosys_cimigration.git
                             """
 
                             // Push to GitHub
