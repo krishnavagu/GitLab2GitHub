@@ -59,9 +59,12 @@ pipeline {
 
                             // Set the correct GitHub repository URL (Token-based authentication)
                             echo "Setting GitHub repository URL: ${GITHUB_REPO_URL}"
-                            sh """
-                                git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO_URL}.git
+                           sh """
+                            git config --global credential.helper 'store --file=/tmp/git-credentials'
+                            echo https://x-access-token:${GITHUB_TOKEN}@github.com > /tmp/git-credentials
+                            git remote set-url origin https://github.com/${GITHUB_REPO_URL}.git
                             """
+
 
                             // Push the GitLab repository to the GitHub organization repository
                             echo "Pushing changes to GitHub repository..."
