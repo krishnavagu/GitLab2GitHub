@@ -58,10 +58,22 @@ pipeline {
                                 git checkout ${branch} || git checkout -b ${branch}
                             """
 
+                            // Remove any cached credentials
+                            echo "Removing existing credentials cache..."
+                            sh """
+                                git config --global --unset credential.helper
+                            """
+
                             // Set the correct GitHub repository URL (Token-based authentication)
                             echo "Setting GitHub repository URL: ${GITHUB_REPO_URL}"
                             sh """
                                 git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO_URL}.git
+                            """
+
+                            // Configure git to store credentials and avoid repeated prompts
+                            echo "Configuring Git credentials storage..."
+                            sh """
+                                git config --global credential.helper store
                             """
 
                             // Push the GitLab repository to the GitHub organization repository
