@@ -62,6 +62,14 @@ pipeline {
             }
         }
 
+        // Add a 2-minute wait (120 seconds) here:
+        stage('Wait for 2 Minutes') {
+            steps {
+                echo "Waiting for 2 minutes..."
+                sleep time: 2, unit: 'MINUTES'  // This will pause the pipeline for 2 minutes (120 seconds)
+            }
+        }
+
         stage('Post-Migration Verification') {
             steps {
                 script {
