@@ -5,7 +5,7 @@ pipeline {
         string(name: 'GITLAB_REPOS', defaultValue: 'https://gitlab.com/cicd-migration/autosys_cimigration.git', description: 'List of GitLab repositories to migrate (comma-separated).')
         string(name: 'GITLAB_BRANCHES', defaultValue: 'F-Autosys_consolidate', description: 'List of GitLab branches to migrate (comma-separated).')
         string(name: 'GITHUB_ORG', defaultValue: 'VenkataSalesforce', description: 'GitHub organization URL to push the code into (e.g., VenkataSalesforce).')
-        string(name: 'GITHUB_TOKEN', description: 'GitHub Personal Access Token for authentication') // Token input for GitHub
+        //string(name: 'GITHUB_TOKEN', description: 'GitHub Personal Access Token for authentication') // Token input for GitHub
     }
 
     environment {
