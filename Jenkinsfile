@@ -9,8 +9,8 @@ pipeline {
     }
 
     environment {
-        GITLAB_CREDENTIALS = 'gitlab-credentials-id'
-        GITHUB_TOKEN = credentials('github-credentials-id') // This will use the secret token stored in Jenkins
+        GITLAB_CREDENTIALS = 'gitlab-credentials-id' // Replace with actual GitLab credentials ID in Jenkins
+        GITHUB_TOKEN = credentials('github-credentials-id') // This will securely use the secret GitHub token stored in Jenkins
     }
 
     stages {
@@ -21,6 +21,7 @@ pipeline {
                     GITLAB_BRANCHES_LIST = params.GITLAB_BRANCHES.split(',')
                     GITHUB_ORG = params.GITHUB_ORG
 
+                    // Check if the number of repositories matches the number of branches
                     if (GITLAB_REPOS_LIST.size() != GITLAB_BRANCHES_LIST.size()) {
                         error "The number of repositories does not match the number of branches."
                     }
@@ -59,17 +60,9 @@ pipeline {
 
                             // Set the correct GitHub repository URL (Token-based authentication)
                             echo "Setting GitHub repository URL: ${GITHUB_REPO_URL}"
-                            withCredentials([string(credentialsId: 'github-credentials-id', variable: 'GITHUB_TOKEN')]) {
-    sh """
-        git config --global credential.helper store --file=/tmp/git-credentials
-        echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > /tmp/git-credentials
-        git remote set-url origin https://github.com/${GITHUB_REPO_URL}.git
-        git push --set-upstream origin ${branch}
-        git push --tags
-    """
-}
-
-
+                            sh """
+                                git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO_URL}.git
+                            """
 
                             // Push the GitLab repository to the GitHub organization repository
                             echo "Pushing changes to GitHub repository..."
