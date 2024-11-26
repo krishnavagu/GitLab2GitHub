@@ -82,6 +82,16 @@ pipeline {
                                 git push --set-upstream origin ${branch}
                                 git push --tags
                             """
+
+                            // Capture any errors that occur during the push process
+                            script {
+                                try {
+                                    sh "git push --set-upstream origin ${branch}"
+                                    sh "git push --tags"
+                                } catch (Exception e) {
+                                    error "Push to GitHub failed: ${e.getMessage()}"
+                                }
+                            }
                         }
                     }
                 }
